@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Moldify 3D Cost Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+/* Layout: two-column workbench — inputs on the right (RTL start), sticky price ticket on the left. Stacks on phones. */
+:root{
+  --navy:#00386E; --orange:#FF6400; --gold:#FFB600; --base:#F4F4F4;
+  --bg:#F4F4F4; --surface:#FFFFFF; --ink:#0E2238; --muted:#5B6B7E; --line:#DCE2E9;
+  --field:#F7F9FB; --brand-ink:#00386E; --ticket:#00386E; --ticket-ink:#FFFFFF; --ticket-muted:#A9C1DA;
+  --good:#1E8E4E; --bad:#C8321E; --warn-bg:#FFF4E0; --nozzle:#00386E; --plate:#DCE3EB;
+  --f-display:"Alexandria","IBM Plex Sans Arabic",Tahoma,sans-serif;
+  --f-body:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#06182B; --surface:#0C2540; --ink:#E9EFF6; --muted:#93A6BC; --line:#1C3A5C;
+  --field:#0A2037; --brand-ink:#8EC1FF; --ticket:#0F2E50; --ticket-ink:#FFFFFF; --ticket-muted:#93AFCD;
+  --good:#4CC983; --bad:#FF7A63; --warn-bg:#2E2410; --nozzle:#2F7BD0; --plate:#2A4A6E; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#06182B; --surface:#0C2540; --ink:#E9EFF6; --muted:#93A6BC; --line:#1C3A5C;
+  --field:#0A2037; --brand-ink:#8EC1FF; --ticket:#0F2E50; --ticket-ink:#FFFFFF; --ticket-muted:#93AFCD;
+  --good:#4CC983; --bad:#FF7A63; --warn-bg:#2E2410; --nozzle:#2F7BD0; --plate:#2A4A6E; color-scheme:dark;}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.num,input,output{font-variant-numeric:tabular-nums}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:60px;height:60px;flex:none}
+.word{font-family:var(--f-display);font-weight:800;font-size:26px;letter-spacing:-.01em;direction:ltr;color:var(--brand-ink)}
+.word b{color:var(--orange);font-weight:800}
+.sub{font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);direction:ltr;text-align:right;margin-top:-2px}
+.tag{color:var(--muted);font-size:13px}
+.hdr-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cur-seg button{padding:6px 12px}
+
+.btn{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:8px 14px;border-radius:999px;cursor:pointer}
+.btn:hover{border-color:var(--orange)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.tier:focus-visible,.seg button:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:22px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.inputs{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+section.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px;display:flex;flex-direction:column;gap:14px}
+.card h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:17px;display:flex;align-items:center;gap:10px;color:var(--ink)}
+.card h2 .dot{width:10px;height:10px;border-radius:3px;background:var(--orange);transform:rotate(45deg)}
+.card .hint{margin:-8px 0 0;color:var(--muted);font-size:13px}
+
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f label{font-size:13px;font-weight:600;color:var(--muted)}
+.box{display:flex;align-items:center;background:var(--field);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.box:focus-within{border-color:var(--orange)}
+.box input,.box select{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-weight:600;padding:9px 11px;direction:ltr;text-align:right}
+.box select{direction:rtl}
+.box .u{padding:0 10px;color:var(--muted);font-size:12px;white-space:nowrap;border-inline-start:1px solid var(--line);align-self:stretch;display:flex;align-items:center}
+.calc-note{font-size:12.5px;color:var(--muted)}
+.calc-note strong{color:var(--ink)}
+
+/* tiers */
+.tiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.tier{border:1px solid var(--line);background:var(--field);border-radius:10px;padding:9px 10px;cursor:pointer;display:flex;flex-direction:column;gap:3px;text-align:right}
+.tier .t1{font-size:12px;color:var(--muted);font-weight:600}
+.tier .t2{font-size:12px;color:var(--muted)}
+.tier input{width:100%;border:0;background:transparent;font:inherit;font-weight:700;font-size:17px;color:var(--ink);padding:0;direction:ltr;text-align:right}
+.tier[aria-checked="true"]{border-color:var(--orange);background:color-mix(in srgb,var(--orange) 10%,var(--surface));box-shadow:0 0 0 1px var(--orange) inset}
+.tier[aria-checked="true"] .t1{color:var(--orange)}
+.src{font-size:12px;color:var(--muted)}
+.src a{color:var(--brand-ink)}
+
+/* segmented */
+.seg{display:inline-flex;background:var(--field);border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{font:inherit;font-size:13px;font-weight:600;border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+
+/* ticket */
+aside.ticket{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);background:var(--ticket);color:var(--ticket-ink);border-radius:18px;overflow:hidden}
+@media (max-width:900px){aside.ticket{position:static}}
+.t-top{padding:20px 20px 16px;display:flex;flex-direction:column;gap:4px;background:
+  radial-gradient(120% 90% at 0% 0%,rgba(255,100,0,.28),transparent 60%)}
+.t-lbl{font-size:12px;letter-spacing:.04em;color:var(--ticket-muted);font-weight:600}
+.t-price{font-family:var(--f-display);font-weight:800;font-size:44px;line-height:1.1;color:#fff;direction:ltr;text-align:right}
+.t-price small{font-size:18px;color:var(--gold);font-weight:700;margin-inline-start:6px}
+.t-sub{font-size:13px;color:var(--ticket-muted)}
+.t-sub b{color:#fff}
+.perf{display:block;height:0;border-top:2px dashed rgba(255,255,255,.18);margin:0 14px;position:relative}
+.t-body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kpi{background:rgba(255,255,255,.06);border-radius:10px;padding:9px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi span{font-size:11.5px;color:var(--ticket-muted)}
+.kpi b{font-size:16px;font-weight:700;direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.pos b{color:#7BE3A6}.kpi.neg b{color:#FF9C88}
+.bar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08)}
+.bar i{display:block;height:100%}
+.rows{display:flex;flex-direction:column;gap:7px;font-size:13.5px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.row .k{display:flex;align-items:center;gap:8px;color:#DCE7F3}
+.row .k i{width:9px;height:9px;border-radius:2px;flex:none}
+.row .v{direction:ltr;font-weight:600;white-space:nowrap}
+.row.sum{border-top:1px solid rgba(255,255,255,.14);padding-top:8px;font-weight:700}
+.row.sum .k{color:#fff}
+.row.hi .v{color:var(--gold)}
+.row.minus .v{color:#FFB3A3}
+.order{background:rgba(255,182,0,.12);border:1px solid rgba(255,182,0,.35);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.order .row .k{color:#FFE3A1}
+.warn{font-size:12.5px;background:rgba(255,100,0,.18);border:1px solid rgba(255,100,0,.5);color:#FFD5BC;padding:8px 10px;border-radius:10px}
+.copy{align-self:flex-start;background:var(--orange);color:#fff;border:0}
+.copy:hover{background:#ff7a26}
+.formula{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.formula .ln{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line)}
+.formula .ln:last-child{border-bottom:0}
+.formula .nm{font-weight:600}
+.formula .ex{direction:ltr;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.formula .rs{direction:ltr;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.formula .ln.tot .nm,.formula .ln.tot .rs{color:var(--orange)}
+@media (max-width:520px){.formula .ln{grid-template-columns:minmax(0,1fr) auto}.formula .ex{grid-column:1/-1;grid-row:2}}
+.pill{align-self:flex-start;font-size:12.5px;font-weight:700;padding:4px 12px;border-radius:999px;margin-bottom:6px}
+.pill.win{background:#1E8E4E;color:#fff}.pill.lose{background:#C8321E;color:#fff}.pill.even{background:var(--gold);color:#1a1a1a}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opts .o{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:8px;font-size:13px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.05);cursor:pointer;border:1px solid transparent;color:inherit;font-family:inherit;text-align:right}
+.opts .o:hover{border-color:rgba(255,182,0,.5)}
+.opts .o b{direction:ltr;text-align:right}
+.opts .o span:last-child{direction:ltr;color:#7BE3A6;white-space:nowrap}
+.mbar{display:none}
+@media (max-width:900px){
+  .mbar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;position:fixed;inset:auto 0 0 0;z-index:5;background:var(--navy);color:#fff;
+    padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));box-shadow:0 -6px 20px rgba(0,0,0,.2)}
+  .mbar div{display:flex;flex-direction:column;gap:1px}
+  .mbar span{font-size:11px;color:#A9C1DA}
+  .mbar b{font-size:16px;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+  body{padding-bottom:90px}}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.guide table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+.guide th,.guide td{text-align:right;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+.guide thead th{background:var(--navy);color:#fff;font-weight:600;font-size:13px;white-space:nowrap}
+.guide tbody th{font-weight:700;white-space:nowrap;color:var(--brand-ink)}
+.guide tbody tr:nth-child(even){background:var(--field)}
+.guide tbody tr:last-child th,.guide tbody tr:last-child td{border-bottom:0}
+.guide td.eq{font-weight:600;color:var(--ink)}
+.guide td.sug{color:var(--orange);font-weight:600}
+.prod-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.prod-row .grow{flex:1 1 240px}
+.prod-row .box input{direction:rtl;text-align:right}
+.prod-btns{display:flex;gap:8px;flex-wrap:wrap}
+.prod-btns .btn{padding:10px 16px}
+.btn.primary{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn.primary:hover{background:#ff7a26}
+.prod-card.editing{border-color:var(--orange)}
+#pStatus b{color:var(--orange)}
+.p-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.p-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.p-tools .search{min-width:180px}
+.p-tools .search input{direction:rtl;text-align:right;padding:7px 11px}
+label.btn{display:inline-flex;align-items:center}
+.count{font-family:var(--f-body);font-size:12px;font-weight:700;background:var(--navy);color:#fff;border-radius:999px;padding:1px 9px}
+.ptbl table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:1500px}
+.ptbl th,.ptbl td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ptbl thead th{background:var(--navy);color:#fff;font-weight:600;font-size:12px;position:sticky;top:0}
+.ptbl td.n{direction:ltr;text-align:right}
+.ptbl .stick{position:sticky;right:0;z-index:1}
+.ptbl thead .stick{z-index:2}
+.ptbl tbody td.stick{background:var(--surface);font-weight:700;color:var(--brand-ink);max-width:220px;overflow:hidden;text-overflow:ellipsis;box-shadow:-1px 0 0 var(--line)}
+.ptbl tbody tr:nth-child(even) td{background:var(--field)}
+.ptbl tbody tr.cur td{background:color-mix(in srgb,var(--orange) 12%,var(--surface))}
+.ptbl td.tot{font-weight:700}
+.ptbl td.sell{font-weight:700;color:var(--orange)}
+.ptbl td.pos{color:var(--good);font-weight:700}.ptbl td.neg{color:var(--bad);font-weight:700}
+.ptbl td.act{white-space:nowrap}
+.ptbl td.act .mini+.mini{margin-inline-start:6px}
+.ptbl .mini{font:inherit;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer}
+.ptbl .mini:hover{border-color:var(--orange)}
+.ptbl .mini.del{color:var(--bad)}
+.ptbl .mini.del.arm{background:var(--bad);color:#fff;border-color:var(--bad)}
+.ptbl tbody tr:last-child td{border-bottom:0}
+.empty{margin:0;color:var(--muted);font-size:13.5px;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:10px}
+.t-course{display:flex;flex-direction:column;gap:2px;text-decoration:none;color:#fff;border-radius:12px;padding:12px 14px;
+  background:linear-gradient(135deg,rgba(255,100,0,.28),rgba(255,182,0,.14));border:1px solid rgba(255,182,0,.45)}
+.t-course:hover{border-color:var(--gold)}
+.tc-k{font-size:11.5px;color:#FFE3A1;font-weight:600}
+.tc-t{font-family:var(--f-display);font-weight:700;font-size:15px}
+.tc-go{font-size:12.5px;color:var(--gold);font-weight:700;margin-top:2px}
+.course{display:grid;grid-template-columns:150px minmax(0,1fr);gap:22px;align-items:center;background:var(--navy);color:#fff;border-radius:18px;padding:24px;
+  background-image:radial-gradient(90% 120% at 0% 100%,rgba(255,100,0,.35),transparent 60%)}
+.c-art svg{width:100%;max-width:150px;display:block}
+.c-body{display:flex;flex-direction:column;gap:8px;min-width:0}
+.c-eyebrow{font-size:12.5px;font-weight:700;color:var(--gold);letter-spacing:.02em}
+.course h2{margin:0;font-family:var(--f-display);font-weight:800;font-size:24px;line-height:1.3;text-wrap:balance}
+.course p{margin:0;color:#D5E2F0;max-width:62ch}
+.c-btn{align-self:flex-start;margin-top:6px;background:var(--orange);color:#fff;text-decoration:none;font-weight:700;padding:11px 22px;border-radius:999px}
+.c-btn:hover{background:#ff7a26}
+.c-btn:focus-visible,.t-course:focus-visible,.soc:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media (max-width:620px){.course{grid-template-columns:minmax(0,1fr);padding:20px}.c-art svg{max-width:90px}.course h2{font-size:20px}}
+.follow{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:10px 0 0}
+.follow h2{margin:0;font-family:var(--f-display);font-weight:800;font-size:20px;color:var(--brand-ink)}
+.follow p{margin:0;color:var(--muted);font-size:13.5px}
+.socs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.soc{--soc-cut:var(--surface);display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;font-weight:600;font-size:13.5px;direction:ltr}
+.soc svg{width:20px;height:20px;flex:none}
+.soc.ig svg{color:#D62976}.soc.fb svg{color:#1877F2}.soc.yt svg{color:#FF0000}.soc.tt svg{color:var(--ink)}
+.soc.yt{--soc-cut:#fff}
+.soc:hover{border-color:var(--orange)}
+footer{color:var(--muted);font-size:12.5px;text-align:center;display:flex;flex-direction:column;gap:2px;padding-top:6px;border-top:1px solid var(--line)}
+footer p{margin:0}
+footer .note{margin-bottom:6px}
+footer .dev b{color:var(--brand-ink)}
+@media (max-width:520px){.t-price{font-size:38px}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+
+
+<meta name="theme-color" content="#00386E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Moldify 3D">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 120 120" role="img" aria-label="شعار Moldify 3D">
+      <!-- nozzle -->
+      <rect x="53" y="4" width="14" height="8" rx="2.5" fill="var(--nozzle)"/>
+      <rect x="43" y="12" width="34" height="22" rx="5" fill="var(--nozzle)"/>
+      <rect x="47" y="15" width="5" height="16" rx="2.5" fill="#fff" opacity=".22"/>
+      <path d="M77 19h15a3 3 0 0 1 0 6H77Z" fill="var(--nozzle)"/>
+      <rect x="47" y="36" width="26" height="4" rx="2" fill="var(--nozzle)"/>
+      <rect x="50" y="42" width="20" height="7" rx="2" fill="var(--nozzle)"/>
+      <path d="M54 50h12v5a6 6 0 0 1-12 0Z" fill="var(--nozzle)"/>
+      <!-- filament -->
+      <path d="M60 60c0 5 6 5 8 8" fill="none" stroke="#FF6400" stroke-width="4" stroke-linecap="round"/>
+      <!-- build plate -->
+      <ellipse cx="60" cy="106" rx="46" ry="6" fill="var(--plate)"/>
+      <!-- stacked layers -->
+      <g fill="none" stroke-linecap="round">
+        <ellipse cx="60" cy="98" rx="38" ry="8" stroke="#FF6400" stroke-width="7"/>
+        <ellipse cx="60" cy="96.5" rx="38" ry="8" stroke="#FFB600" stroke-width="1.6" stroke-dasharray="0 70 60 200"/>
+        <ellipse cx="60" cy="87" rx="29" ry="6.5" stroke="#FF6400" stroke-width="6.5"/>
+        <ellipse cx="60" cy="85.6" rx="29" ry="6.5" stroke="#FFB600" stroke-width="1.5" stroke-dasharray="0 52 46 200"/>
+        <ellipse cx="60" cy="77.5" rx="20" ry="5" stroke="#FF6400" stroke-width="6"/>
+        <ellipse cx="60" cy="76.2" rx="20" ry="5" stroke="#FFB600" stroke-width="1.4" stroke-dasharray="0 36 32 200"/>
+        <ellipse cx="60" cy="69.5" rx="10" ry="3.2" stroke="#FF6400" stroke-width="5"/>
+      </g>
+    </svg>
+    <div>
+      <div class="word">Moldify <b>3D</b></div>
+      <div class="sub">3D Cost Calculator</div>
+      <div class="tag">احسب تكلفة منتجاتك واعرف مكسبك الحقيقي من الـ3D Printing.</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <div class="seg cur-seg" role="group" aria-label="العملة">
+      <button type="button" id="curEGP" aria-pressed="true">جنيه مصري</button>
+      <button type="button" id="curUSD" aria-pressed="false">دولار $</button>
+    </div>
+    <button class="btn" id="saveBtn" type="button">حفظ إعداداتي</button>
+    <button class="btn" id="resetBtn" type="button">رجوع للقيم الافتراضية</button>
+  </div>
+</header>
+
+<div class="grid">
+<div class="inputs">
+
+  <section class="card prod-card">
+    <h2><span class="dot"></span>المنتج</h2>
+    <div class="prod-row">
+      <div class="f grow"><label for="pName">اسم المنتج</label><div class="box"><input id="pName" type="text" maxlength="80" placeholder="مثلاً: سبينر، استاند موبايل، برواز…" autocomplete="off"></div></div>
+      <div class="prod-btns">
+        <button class="btn primary" id="pSave" type="button">حفظ المنتج</button>
+        <button class="btn" id="pNew" type="button">منتج جديد</button>
+      </div>
+    </div>
+    <p class="calc-note" id="pStatus">اكتب اسم المنتج وبياناته، ودوس "حفظ المنتج" عشان يتسجل في جدول منتجاتي تحت.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>الخامة</h2>
+    <div class="fields">
+      <div class="f" id="fGrams"><label for="grams">وزن الخامة للقطعة</label><div class="box"><input id="grams" type="number" min="0" step="0.1"><span class="u">جرام</span></div></div>
+      <div class="f"><label for="kgPrice">سعر كيلو الفلامنت</label><div class="box"><input id="kgPrice" type="number" min="0" step="10"><span class="u" data-cu="{c} / كجم">ج / كجم</span></div></div>
+    </div>
+    <p class="calc-note">اكتب الوزن ووقت الطباعة زي ما السلايسر بيطلعهم (Filament used و Print time).</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>الطابعة والكهرباء</h2>
+    <div class="fields">
+      <div class="f"><label for="hours">وقت الطباعة للقطعة: ساعات</label><div class="box"><input id="hours" type="number" min="0" step="any"><span class="u">ساعة</span></div></div>
+      <div class="f"><label for="mins">و دقايق</label><div class="box"><input id="mins" type="number" min="0" max="59" step="5"><span class="u">دقيقة</span></div></div>
+      <div class="f"><label for="watts">متوسط استهلاك الطابعة</label><div class="box"><input id="watts" type="number" min="0" step="10"><span class="u">وات</span></div></div>
+    </div>
+    <p class="calc-note">طابعات FDM المنزلية بتسحب في المتوسط من 100 لـ 200 وات وقت الطباعة.</p>
+
+    <div id="usdBox" hidden>
+      <div class="fields"><div class="f"><label for="usdKwh">سعر الكيلووات/ساعة عندك</label><div class="box"><input id="usdKwh" type="number" min="0" step="0.01"><span class="u">$ / ك.و.س</span></div></div></div>
+      <p class="calc-note">اكتب سعر الكيلووات/ساعة من فاتورة الكهرباء في بلدك بالدولار.</p>
+    </div>
+    <div id="tierBox">
+    <div class="f"><label>اختار شريحتك (سعر الكيلووات/ساعة بالجنيه، تقدر تعدّله)</label></div>
+    <div class="tiers" id="tiers" role="radiogroup" aria-label="شريحة الكهرباء"></div>
+    <p class="src">أسعار الاستهلاك المنزلي من فاتورة أغسطس 2026. المصدر: <a href="https://www.elbalad.news/7057891" target="_blank" rel="noopener">صدى البلد</a>. الكهرباء الزيادة بتاعة الطابعة بتتحاسب بسعر شريحتك، ولو الطباعة كتير ممكن تنقلك للشريحة اللي بعدها.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>استهلاك الطابعة</h2>
+    <p class="hint">(سعر الطابعة + الصيانة) ÷ عمرها بالساعات. التقدير المتعارف عليه: الطابعة بتعيش حوالي 5000 ساعة، والصيانة حوالي 5% من سعرها.</p>
+    <div class="fields">
+      <div class="f"><label for="printerPrice">سعر الطابعة</label><div class="box"><input id="printerPrice" type="number" min="0" step="500"><span class="u" data-cu="{c}">ج</span></div></div>
+      <div class="f"><label for="lifeHours">العمر المتوقع</label><div class="box"><input id="lifeHours" type="number" min="1" step="500"><span class="u">ساعة</span></div></div>
+      <div class="f"><label for="maint">صيانة وقطع غيار على عمرها</label><div class="box"><input id="maint" type="number" min="0" step="1"><span class="u">% من سعرها</span></div></div>
+    </div>
+    <p class="calc-note">تكلفة الساعة على الطابعة: <strong id="wearRate" class="num">—</strong></p>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>الشغل والفشل</h2>
+    <div class="fields">
+      <div class="f"><label for="laborMin">وقت شغلك في القطعة (تجهيز، فك، تشطيب)</label><div class="box"><input id="laborMin" type="number" min="0" step="1"><span class="u">دقيقة</span></div></div>
+      <div class="f"><label for="laborRate">سعر ساعتك</label><div class="box"><input id="laborRate" type="number" min="0" step="10"><span class="u" data-cu="{c} / ساعة">ج / ساعة</span></div></div>
+      <div class="f"><label for="failRate">نسبة الطبعات اللي بتفشل</label><div class="box"><input id="failRate" type="number" min="0" max="90" step="1"><span class="u">%</span></div></div>
+    </div>
+    <p class="calc-note">الفشل بيتحسب على الخامة والكهرباء والطابعة بس، من غير الشغل اليدوي.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>تكاليف إضافية</h2>
+    <div class="fields">
+      <div class="f"><label for="pack">تغليف للقطعة</label><div class="box"><input id="pack" type="number" min="0" step="1"><span class="u" data-cu="{c}">ج</span></div></div>
+      <div class="f"><label for="finish">صنفرة / دهان / إكسسوارات للقطعة</label><div class="box"><input id="finish" type="number" min="0" step="1"><span class="u" data-cu="{c}">ج</span></div></div>
+      <div class="f"><label for="ship">شحن الطلب كله (عليك)</label><div class="box"><input id="ship" type="number" min="0" step="5"><span class="u" data-cu="{c}">ج</span></div></div>
+      <div class="f"><label for="comm">عمولة المنصة (بتتخصم من ربحك)</label><div class="box"><input id="comm" type="number" min="0" max="80" step="0.5"><span class="u">% من البيع</span></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="dot"></span>التسعير</h2>
+    <div class="seg" role="group" aria-label="طريقة التسعير">
+      <button type="button" id="modeMarkup" aria-pressed="true">حدد نسبة الربح ← اعرف السعر</button>
+      <button type="button" id="modePrice" aria-pressed="false">حدد سعر البيع ← اعرف ربحك</button>
+    </div>
+    <div class="fields">
+      <div class="f" id="fMarkup"><label for="markup">نسبة الربح فوق التكلفة (Markup)</label><div class="box"><input id="markup" type="number" min="0" step="5"><span class="u">%</span></div></div>
+      <div class="f" id="fPrice" hidden><label for="salePrice">سعر بيع القطعة</label><div class="box"><input id="salePrice" type="number" min="0" step="5"><span class="u" data-cu="{c}">ج</span></div></div>
+      <div class="f"><label for="qty">الكمية</label><div class="box"><input id="qty" type="number" min="1" step="1"><span class="u">قطعة</span></div></div>
+    </div>
+    <p class="calc-note">Markup = الربح ÷ التكلفة. Margin = الربح ÷ سعر البيع. يعني ربح 50% فوق التكلفة = هامش 33% من السعر.</p>
+  </section>
+  <section class="card">
+    <h2><span class="dot"></span>المعادلة بالأرقام</h2>
+    <p class="hint">نفس معادلات الموقع المرجعي، بالأرقام اللي أنت كاتبها دلوقتي.</p>
+    <div class="formula" id="formula"></div>
+  </section>
+</div>
+
+<aside class="ticket" aria-live="polite">
+  <div class="t-top">
+    <span class="pill" id="verdict"></span>
+    <span class="t-lbl" id="priceLbl">السعر المقترح للقطعة</span>
+    <div class="t-price"><span id="price">0</span><small id="curBig">ج.م</small></div>
+    <span class="t-sub">التكلفة الكلية للقطعة <b id="costTop" class="num">0</b> · أقل سعر من غير خسارة <b id="breakeven" class="num">0</b></span>
+  </div>
+  <span class="perf"></span>
+  <div class="t-body">
+    <div class="kpis">
+      <div class="kpi" id="kProfit"><span>صافي ربح القطعة</span><b id="profit">0</b></div>
+      <div class="kpi" id="kMargin"><span>Margin</span><b id="margin">0%</b></div>
+      <div class="kpi" id="kMarkup"><span>Markup</span><b id="markupOut">0%</b></div>
+    </div>
+    <div class="bar" id="bar"></div>
+    <div class="rows" id="rows"></div>
+    <div class="order">
+      <div class="row"><span class="k">سعر الطلب كله (<span id="qtyOut">1</span> قطعة)</span><span class="v" id="orderPrice">0</span></div>
+      <div class="row"><span class="k">تكلفة الطلب كله</span><span class="v" id="orderCost">0</span></div>
+      <div class="row"><span class="k">صافي ربح الطلب</span><span class="v" id="orderProfit">0</span></div>
+    </div>
+    <div class="opts">
+      <span class="t-lbl">أسعار مقترحة حسب نسبة الربح</span>
+      <div id="opts"></div>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+    <button class="btn copy" id="copyBtn" type="button">نسخ ملخص التسعير</button>
+    <a class="t-course" href="https://moldify3d.nzmly.com" target="_blank" rel="noopener">
+      <span class="tc-k">طوّر مهاراتك في الـ3D</span>
+      <span class="tc-t">كورس Blender والـAI للـ3D Printing</span>
+      <span class="tc-go">اكتشف الكورس الآن ←</span>
+    </a>
+  </div>
+</aside>
+</div>
+
+<section class="course" aria-labelledby="courseTitle">
+  <div class="c-art" aria-hidden="true">
+    <svg viewBox="0 0 120 120"><g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M60 14 102 38v44L60 106 18 82V38Z" stroke="#FFB600" stroke-width="3" opacity=".9"/>
+      <path d="M18 38 60 62 102 38M60 62v44" stroke="#FFB600" stroke-width="3" opacity=".55"/>
+      <path d="M60 14v18M39 26l-6 16M81 26l6 16" stroke="#FF6400" stroke-width="3"/>
+      <circle cx="60" cy="62" r="7" fill="#FF6400" stroke="none"/></g></svg>
+  </div>
+  <div class="c-body">
+    <span class="c-eyebrow">طوّر مهاراتك في الـ3D</span>
+    <h2 id="courseTitle">كورس Blender والـAI للـ3D Printing</h2>
+    <p>اتعلم تصميم موديلات 3D باستخدام Blender والذكاء الاصطناعي، وحوّل أفكارك لتصميمات احترافية قابلة للطباعة على الـ3D Printer.</p>
+    <a class="c-btn" href="https://moldify3d.nzmly.com" target="_blank" rel="noopener">اكتشف الكورس الآن</a>
+  </div>
+</section>
+<section class="card products" id="products">
+  <div class="p-head">
+    <h2><span class="dot"></span>منتجاتي <span class="count" id="pCount">0</span></h2>
+    <div class="p-tools">
+      <div class="box search"><input id="pSearch" type="search" placeholder="دوّر باسم المنتج" aria-label="دوّر باسم المنتج"></div>
+      <button class="btn" id="pExport" type="button">تصدير Excel</button>
+      <label class="btn" for="pImport">استيراد نسخة</label>
+      <input id="pImport" type="file" accept=".csv,text/csv" hidden>
+    </div>
+  </div>
+  <p class="hint">دوس "فتح" على أي منتج يرجع بكل أرقامه في الحاسبة. المنتجات متسجلة في المتصفح ده بس، فاعمل "تصدير Excel" كل فترة كنسخة احتياطية.</p>
+  <div class="tbl ptbl">
+    <table>
+      <thead><tr>
+        <th class="stick">المنتج</th><th></th><th>العملة</th><th>سعر ساعة الطابعة</th><th>ساعات الطباعة</th><th>تكلفة الطابعة</th>
+        <th>سعر كيلو الفيلامنت</th><th>سعر الجرام</th><th>الوزن (جم)</th><th>تكلفة الخامة</th>
+        <th>الكهرباء</th><th>شغلك</th><th>نسبة الهالك</th><th>احتياطي الهالك</th>
+        <th>الإضافات</th><th>التغليف</th><th>الشحن</th><th>التكلفة الإجمالية</th>
+        <th>نسبة الربح</th><th>سعر البيع</th><th>صافي الربح</th>
+      </tr></thead>
+      <tbody id="pBody"></tbody>
+    </table>
+  </div>
+  <p class="empty" id="pEmpty">لسه مفيش منتجات محفوظة. اكتب اسم منتج فوق ودوس "حفظ المنتج".</p>
+</section>
+<section class="card guide">
+  <h2><span class="dot"></span>دليل الخانات: كل خانة يعني إيه وتحسبها إزاي</h2>
+  <p class="hint">الأرقام المقترحة مبنية على طابعة Bambu Lab A1. غيّرها حسب طابعتك وشغلك.</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>الخانة</th><th>يعني إيه</th><th>تحسبها إزاي</th><th>الرقم المقترح</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">وزن الخامة</th><td>وزن الفلامنت اللي القطعة بتاخده.</td><td>من السلايسر: Filament used بالجرام. لو على السطح كذا قطعة، اقسم على عددهم.</td><td class="sug">حسب القطعة</td></tr>
+        <tr><th scope="row">سعر كيلو الفلامنت</th><td>اللي دفعته في بكرة الكيلو.</td><td>سعر البكرة ÷ وزنها بالكيلو.</td><td class="sug">سعرك الفعلي</td></tr>
+        <tr><th scope="row">وقت الطباعة</th><td>المدة اللي الطابعة شغالة فيها.</td><td>من السلايسر: Print time بالساعات والدقايق.</td><td class="sug">حسب القطعة</td></tr>
+        <tr><th scope="row">متوسط الاستهلاك</th><td>الكهرباء اللي الطابعة بتسحبها وهي بتطبع.</td><td>من موقع الشركة أو بعداد كهرباء صغير في الفيشة.</td><td class="sug">100 وات مع PLA، و120 مع PETG</td></tr>
+        <tr><th scope="row">الشريحة</th><td>سعر الكيلووات/ساعة في فاتورتك.</td><td>شوف استهلاكك الشهري في الفاتورة واختار الشريحة اللي هو فيها.</td><td class="sug">حسب فاتورتك</td></tr>
+        <tr><th scope="row">سعر الطابعة</th><td>اللي دفعته في الطابعة.</td><td>السعر اللي اشتريت بيه.</td><td class="sug">سعرك الفعلي</td></tr>
+        <tr><th scope="row">العمر المتوقع</th><td>عدد ساعات الطباعة قبل ما الطابعة تستهلك.</td><td>رقم متعارف عليه لطابعات FDM.</td><td class="sug">5000 ساعة</td></tr>
+        <tr><th scope="row">صيانة وقطع غيار</th><td>فوهات، هوت إند، سيور، سطح طباعة على عمر الطابعة.</td><td>نسبة من سعر الطابعة.</td><td class="sug">10% من سعرها</td></tr>
+        <tr><th scope="row">وقت شغلك</th><td>الدقايق اللي أنت بنفسك بتقضيها في القطعة: تجهيز الملف، فك، شيل ساپورت، تشطيب، تغليف.</td><td>اجمع الدقايق. لو كذا قطعة على سطح واحد، اقسم وقت التجهيز عليهم.</td><td class="sug">5 – 10 دقايق للقطعة البسيطة</td></tr>
+        <tr><th scope="row">سعر ساعتك</th><td>اللي عايز تكسبه من وقتك في الساعة.</td><td>المرتب اللي عايزه في الشهر ÷ ساعات شغلك في الشهر. مثال: 8000 ÷ 160 = 50 ج.</td><td class="sug">حسب هدفك، أو 0 لو مش هتحسب وقتك</td></tr>
+        <tr><th scope="row">نسبة الفشل</th><td>الطبعات اللي بتبوظ ولازم تتعاد.</td><td>عدد الطبعات اللي باظت ÷ كل الطبعات × 100. بص على آخر 20 – 30 طبعة.</td><td class="sug">5% لو متظبطة، و10% لو لسه بتتعلم</td></tr>
+        <tr><th scope="row">تغليف / تشطيب</th><td>مصاريف على كل قطعة: كيس، علبة، دهان، صنفرة، إكسسوار.</td><td>سعر الحاجة ÷ عدد القطع اللي بتكفيها.</td><td class="sug">حسب منتجك</td></tr>
+        <tr><th scope="row">الشحن</th><td>مصاريف الشحن لو أنت اللي بتدفعها.</td><td>تكلفة شحن الطلب كله، والحاسبة بتقسمها على الكمية.</td><td class="sug">0 لو العميل بيدفع</td></tr>
+        <tr><th scope="row">عمولة المنصة</th><td>النسبة اللي بتاخدها منصة البيع أو الدفع.</td><td>من شروط المنصة. بتتخصم من ربحك.</td><td class="sug">0 لو بتبيع مباشر</td></tr>
+        <tr><th scope="row">نسبة الربح</th><td>الزيادة اللي بتحطها فوق التكلفة.</td><td>السعر = التكلفة × (1 + النسبة). 50% فوق التكلفة = هامش 33% من السعر.</td><td class="sug">من 50% لـ 100%</td></tr>
+        <tr><th scope="row">الكمية</th><td>عدد القطع في الطلب.</td><td>بيحسبلك سعر وتكلفة وربح الطلب كله.</td><td class="sug">1 أو أكتر</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="card guide">
+  <h2><span class="dot"></span>المعادلات اللي الحاسبة شغالة بيها</h2>
+  <p class="hint">كل الحسابات للقطعة الواحدة. النسب بتدخل المعادلة ككسر: نسبة 5 في المية بتتحسب 0.05.</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>البند</th><th>المعادلة</th><th>ملاحظة</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">الخامة</th><td class="eq">وزن الخامة ÷ 1000 × سعر الكيلو</td><td>بنحوّل الجرامات لكيلو ونضرب في سعره.</td></tr>
+        <tr><th scope="row">الكهرباء</th><td class="eq">الوات × ساعات الطباعة ÷ 1000 × سعر الشريحة</td><td>الوات × الساعات ÷ 1000 = الاستهلاك بالكيلووات/ساعة.</td></tr>
+        <tr><th scope="row">ساعات الطباعة</th><td class="eq">الساعات + (الدقايق ÷ 60)</td><td>عشان الدقايق تتحسب كجزء من ساعة.</td></tr>
+        <tr><th scope="row">تكلفة ساعة الطابعة</th><td class="eq">سعر الطابعة × (1 + نسبة الصيانة) ÷ العمر المتوقع</td><td>سعر الطابعة وصيانتها موزعين على ساعات عمرها.</td></tr>
+        <tr><th scope="row">استهلاك الطابعة</th><td class="eq">ساعات الطباعة × تكلفة ساعة الطابعة</td><td></td></tr>
+        <tr><th scope="row">شغلك</th><td class="eq">دقايق شغلك ÷ 60 × سعر ساعتك</td><td></td></tr>
+        <tr><th scope="row">احتياطي الفشل</th><td class="eq">(الخامة + الكهرباء + الطابعة) × نسبة الفشل ÷ (1 − نسبة الفشل)</td><td>شغلك مش داخل هنا، لأن القطعة اللي بتبوظ مش بتشطّبها.</td></tr>
+        <tr><th scope="row">الإضافات</th><td class="eq">التغليف + التشطيب + (الشحن ÷ الكمية)</td><td>الشحن بيتدفع مرة واحدة على الطلب، فبيتقسم على القطع.</td></tr>
+        <tr><th scope="row">التكلفة</th><td class="eq">الخامة + الكهرباء + الطابعة + شغلك + احتياطي الفشل + الإضافات</td><td>تكلفة القطعة الواحدة.</td></tr>
+        <tr><th scope="row">سعر البيع</th><td class="eq">التكلفة × (1 + نسبة الربح)</td><td>لو اخترت "حدد سعر البيع"، السعر هو اللي أنت كاتبه.</td></tr>
+        <tr><th scope="row">العمولة</th><td class="eq">سعر البيع × نسبة العمولة</td><td>بتتخصم من ربحك.</td></tr>
+        <tr><th scope="row">صافي الربح</th><td class="eq">سعر البيع − العمولة − التكلفة</td><td>لو بالسالب يبقى بتخسر.</td></tr>
+        <tr><th scope="row">Margin</th><td class="eq">صافي الربح ÷ سعر البيع</td><td>نسبة ربحك من سعر البيع.</td></tr>
+        <tr><th scope="row">Markup</th><td class="eq">صافي الربح ÷ التكلفة</td><td>نسبة ربحك فوق التكلفة.</td></tr>
+        <tr><th scope="row">أقل سعر من غير خسارة</th><td class="eq">التكلفة ÷ (1 − نسبة العمولة)</td><td>لو مفيش عمولة، يبقى نفس التكلفة.</td></tr>
+        <tr><th scope="row">الطلب كله</th><td class="eq">السعر والتكلفة والربح × الكمية</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+<div class="mbar" id="mbar"><div><span>السعر</span><b id="mbPrice">0</b></div><div><span>التكلفة</span><b id="mbCost">0</b></div><div><span>الربح</span><b id="mbProfit">0</b></div></div>
+<section class="follow">
+  <h2>تابع Moldify 3D</h2>
+  <p>تصميمات ونصايح طباعة وفيديوهات Blender.</p>
+  <div class="socs">
+      <a class="soc ig" href="https://www.instagram.com/moldify_3d1" target="_blank" rel="noopener" aria-label="Moldify 3D على Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor"/></svg><span>Instagram</span></a>
+      <a class="soc fb" href="https://www.facebook.com/share/1CHAYnKupY/" target="_blank" rel="noopener" aria-label="Moldify 3D على Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.9 1.4-3.9 4v2.2H7.9v3h2.6V21z"/></svg><span>Facebook</span></a>
+      <a class="soc yt" href="https://youtube.com/@moldify_3d1" target="_blank" rel="noopener" aria-label="Moldify 3D على YouTube"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4" fill="currentColor"/><path d="M10 9v6l5-3z" fill="var(--soc-cut)"/></svg><span>YouTube</span></a>
+      <a class="soc tt" href="https://www.tiktok.com/@moldify3d" target="_blank" rel="noopener" aria-label="Moldify 3D على TikTok"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.6 3c.3 2.2 1.6 3.6 3.9 3.8v3a7.4 7.4 0 0 1-3.8-1.2v6.1a5.7 5.7 0 1 1-5.7-5.7c.3 0 .6 0 .9.1v3.1a2.6 2.6 0 1 0 1.8 2.5V3z"/></svg><span>TikTok</span></a>
+  </div>
+</section>
+<footer>
+  <p class="note">كل الأرقام تقديرية. عدّل أسعار الشرائح لو حصلت زيادة جديدة.</p>
+  <p class="dev" dir="ltr">Developed by <b>Moldify 3D</b></p>
+  <p dir="ltr">© 2026 Moldify 3D – All Rights Reserved.</p>
+</footer>
+</div>
+
+<script>
+(function(){
+const DEFAULT_TIERS=[
+  {n:"الأولى",r:"0 – 50 ك.و.س",p:0.68},
+  {n:"التانية",r:"51 – 100",p:0.87},
+  {n:"التالتة",r:"101 – 200",p:1.06},
+  {n:"الرابعة",r:"201 – 350",p:1.73},
+  {n:"الخامسة",r:"351 – 650",p:2.18},
+  {n:"السادسة",r:"651 – 1000",p:2.35},
+  {n:"السابعة",r:"أكتر من 1000",p:2.88}
+];
+const DEFAULTS={grams:0,kgPrice:0,hours:0,mins:0,watts:0,printerPrice:0,lifeHours:0,maint:0,
+  laborMin:0,laborRate:0,failRate:0,pack:0,finish:0,ship:0,comm:0,markup:0,salePrice:0,qty:1,
+  mode:"markup",currency:"EGP",usdKwh:0,tier:3,tierPrices:DEFAULT_TIERS.map(t=>t.p)};
+const KEY="moldify-calc-v4";
+let state=JSON.parse(JSON.stringify(DEFAULTS));
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s)state=Object.assign(state,s);}catch(e){}
+
+const ids=["usdKwh","grams","kgPrice","hours","mins","watts","printerPrice","lifeHours","maint","laborMin","laborRate","failRate","pack","finish","ship","comm","markup","salePrice","qty"];
+const $=id=>document.getElementById(id);
+const fmt=(v,d=2)=>isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
+const isUSD=()=>state.currency==="USD";
+const sym=()=>isUSD()?"$":"ج";
+const egp=v=>isUSD()?(v<0?"-":"")+"$"+fmt(Math.abs(v)):fmt(v)+" ج";
+const pct=v=>isFinite(v)?fmt(v*100,1)+"%":"—";
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)&&v>=0?v:0;};
+
+ids.forEach(id=>{$(id).value=state[id];$(id).addEventListener("input",calc);$(id).addEventListener("change",calc);});
+
+// tiers
+const tiersEl=$("tiers");
+DEFAULT_TIERS.forEach((t,i)=>{
+  const d=document.createElement("div");
+  d.className="tier";d.setAttribute("role","radio");d.tabIndex=0;d.dataset.i=i;
+  d.innerHTML=`<span class="t1">الشريحة ${t.n}</span><input type="number" step="0.01" min="0" id="tp${i}" aria-label="سعر الشريحة ${t.n}"><span class="t2">${t.r}</span>`;
+  const inp=d.querySelector("input");inp.value=state.tierPrices[i];
+  inp.addEventListener("input",()=>{state.tierPrices[i]=parseFloat(inp.value)||0;calc();});
+  inp.addEventListener("focus",()=>selectTier(i));
+  d.addEventListener("click",()=>selectTier(i));
+  d.addEventListener("keydown",e=>{if(e.target===d&&(e.key===" "||e.key==="Enter")){e.preventDefault();selectTier(i);}});
+  tiersEl.appendChild(d);
+});
+function selectTier(i){state.tier=i;[...tiersEl.children].forEach((c,j)=>c.setAttribute("aria-checked",j===i?"true":"false"));calc();}
+
+// currency
+function setCurrency(c){
+  state.currency=c==="USD"?"USD":"EGP";
+  $("curEGP").setAttribute("aria-pressed",!isUSD());$("curUSD").setAttribute("aria-pressed",isUSD());
+  document.querySelectorAll("[data-cu]").forEach(el=>el.textContent=el.dataset.cu.replace("{c}",sym()));
+  $("curBig").textContent=isUSD()?"USD":"ج.م";
+  $("usdBox").hidden=!isUSD();$("tierBox").hidden=isUSD();
+  calc();
+}
+$("curEGP").onclick=()=>setCurrency("EGP");$("curUSD").onclick=()=>setCurrency("USD");
+// mode
+function setMode(m){state.mode=m;$("modeMarkup").setAttribute("aria-pressed",m==="markup");$("modePrice").setAttribute("aria-pressed",m==="price");
+  $("fMarkup").hidden=m!=="markup";$("fPrice").hidden=m!=="price";calc();}
+$("opts").addEventListener("click",e=>{const b=e.target.closest(".o");if(!b)return;$("markup").value=b.dataset.m;setMode("markup");});
+$("modeMarkup").onclick=()=>setMode("markup");$("modePrice").onclick=()=>setMode("price");
+
+const pos=x=>{x=parseFloat(x);return isFinite(x)&&x>0?x:0;};
+function compute(st){
+  const qty=Math.max(1,Math.round(pos(st.qty)||1));
+  const h=pos(st.hours)+pos(st.mins)/60;
+  const rate=st.currency==="USD"?pos(st.usdKwh):pos((st.tierPrices||[])[st.tier]);
+  const wearRate=pos(st.lifeHours)>0?pos(st.printerPrice)*(1+pos(st.maint)/100)/pos(st.lifeHours):0;
+  const f=Math.min(pos(st.failRate),90)/100, c=Math.min(pos(st.comm),80)/100;
+  const grams=pos(st.grams), kg=pos(st.kgPrice);
+  const fil=grams/1000*kg, elec=pos(st.watts)*h/1000*rate, wear=h*wearRate;
+  const labor=pos(st.laborMin)/60*pos(st.laborRate);
+  const fail=(fil+elec+wear)*f/(1-f);
+  const extra=pos(st.pack)+pos(st.finish)+pos(st.ship)/qty;
+  const cost=fil+elec+wear+labor+fail+extra;
+  const breakeven=cost/(1-c);
+  const price=st.mode==="price"?pos(st.salePrice):cost*(1+pos(st.markup)/100);
+  const commAmt=price*c, profit=price-commAmt-cost;
+  return {qty,h,rate,wearRate,f,c,grams,kg,fil,elec,wear,labor,fail,extra,cost,breakeven,price,commAmt,profit,
+    margin:price>0?profit/price:NaN, mk:cost>0?profit/cost:NaN};
+}
+const COLORS={fil:"#FF6400",elec:"#FFB600",wear:"#5C9BD6",labor:"#8FB7E0",fail:"#C8321E",extra:"#B9C7D6"};
+let last=null;
+
+function calc(){
+  ids.forEach(id=>state[id]=$(id).tagName==="SELECT"?$(id).value:(parseFloat($(id).value)||0));
+  const {qty,h,rate,wearRate,f,c,grams,fil,elec,wear,labor,fail,extra,cost,breakeven,price,commAmt,profit,margin,mk}=compute(state);
+
+  $("wearRate").textContent=egp(wearRate)+" / ساعة";
+  $("costTop").textContent=egp(cost);$("breakeven").textContent=egp(breakeven);
+  $("priceLbl").textContent=state.mode==="markup"?"السعر المقترح للقطعة":"سعر البيع اللي حددته للقطعة";
+  $("price").textContent=fmt(price);
+  
+  
+  $("profit").textContent=egp(profit);
+  $("margin").textContent=pct(margin);
+  $("markupOut").textContent=pct(mk);
+  ["kProfit","kMargin","kMarkup"].forEach(k=>{$(k).classList.toggle("pos",profit>0.005);$(k).classList.toggle("neg",profit<-0.005);});
+
+  const parts=[
+    ["fil","الخامة",fil],["elec",`الكهرباء (${fmt(num("watts")*h/1000,2)} ك.و.س × ${fmt(rate)})`,elec],
+    ["wear","استهلاك الطابعة",wear],["labor","شغلك",labor],["fail",`احتياطي الفشل (${fmt(f*100,0)}%)`,fail],
+    ["extra","تغليف وتشطيب وشحن",extra]];
+  const total=cost||1;
+  $("bar").innerHTML=parts.map(p=>`<i style="width:${Math.max(0,p[2]/total*100)}%;background:${COLORS[p[0]]}" title="${p[1]}"></i>`).join("");
+  let html=parts.map(p=>`<div class="row"><span class="k"><i style="background:${COLORS[p[0]]}"></i>${p[1]}</span><span class="v">${egp(p[2])}</span></div>`).join("");
+  html+=`<div class="row sum"><span class="k">التكلفة</span><span class="v">${egp(cost)}</span></div>`;
+  if(c>0)html+=`<div class="row minus"><span class="k">عمولة المنصة (${fmt(c*100,1)}%)</span><span class="v">− ${egp(commAmt)}</span></div>`;
+  html+=`<div class="row hi"><span class="k">صافي الربح</span><span class="v">${egp(profit)}</span></div>`;
+  $("rows").innerHTML=html;
+
+  $("qtyOut").textContent=qty;
+  $("orderPrice").textContent=egp(price*qty);
+  $("orderCost").textContent=egp(cost*qty);
+  $("orderProfit").textContent=egp(profit*qty);
+
+  const w=$("warn");
+  if(state.mode==="price"&&price>0&&profit<0){w.hidden=false;w.textContent=`السعر ده بيخسّرك ${egp(-profit)} في القطعة. أقل سعر عشان متخسرش ${egp(breakeven)}.`;}
+  else if(state.mode==="price"&&price<=0){w.hidden=false;w.textContent="اكتب سعر البيع عشان تعرف ربحك.";}
+  else w.hidden=true;
+
+  $("mbPrice").textContent=egp(price);$("mbCost").textContent=egp(cost);$("mbProfit").textContent=egp(profit);
+  $("mbProfit").style.color=profit<0?"#FF9C88":"#7BE3A6";
+  const v=$("verdict");
+  if(profit>0.005){v.className="pill win";v.textContent=`بتكسب ${egp(profit)} في القطعة`;}
+  else if(profit<-0.005){v.className="pill lose";v.textContent=`بتخسر ${egp(-profit)} في القطعة`;}
+  else{v.className="pill even";v.textContent="على التعادل: لا مكسب ولا خسارة";}
+  $("opts").innerHTML=[25,50,75,100,150].map(m=>{const P=cost*(1+m/100);const pr=P-P*c-cost;
+    return `<button type="button" class="o" data-m="${m}"><b>${m}%</b><span>${egp(P)}</span><span>+${egp(pr)}</span></button>`;}).join("");
+  const F=[
+    ["الخامة",`${fmt(grams,1)} g ÷ 1000 × ${fmt(num("kgPrice"),0)}`,fil],
+    ["الكهرباء",`${fmt(num("watts"),0)} W × ${fmt(h,2)} h ÷ 1000 × ${fmt(rate)}`,elec],
+    ["الطابعة",`${fmt(h,2)} h × ${fmt(wearRate)}`,wear],
+    ["شغلك",`${fmt(num("laborMin"),0)} min ÷ 60 × ${fmt(num("laborRate"),0)}`,labor],
+    ["احتياطي الفشل",`(${fmt(fil)} + ${fmt(elec)} + ${fmt(wear)}) × ${fmt(f,2)} ÷ ${fmt(1-f,2)}`,fail],
+    ["إضافات",`${fmt(num("pack"))} + ${fmt(num("finish"))} + ${fmt(num("ship"))} ÷ ${qty}`,extra],
+    ["التكلفة","مجموع اللي فوق",cost,"tot"],
+    ["السعر",state.mode==="markup"?`${fmt(cost)} × (1 + ${fmt(num("markup")/100,2)})`:"السعر اللي كتبته",price,"tot"]];
+  $("formula").innerHTML=F.map(r=>`<div class="ln ${r[3]||""}"><span class="nm">${r[0]}</span><span class="ex">${r[1]}</span><span class="rs">${egp(r[2])}</span></div>`).join("");
+  last={price,cost,profit,margin,mk,qty,fil,elec,wear,labor,fail,extra,commAmt,tier:isUSD()?"":DEFAULT_TIERS[state.tier].n,rate};
+}
+
+$("saveBtn").onclick=()=>{try{localStorage.setItem(KEY,JSON.stringify(state));flash($("saveBtn"),"اتحفظت");}catch(e){flash($("saveBtn"),"المتصفح مش سامح بالحفظ");}};
+$("resetBtn").onclick=()=>{state=JSON.parse(JSON.stringify(DEFAULTS));ids.forEach(id=>$(id).value=state[id]);
+  state.tierPrices.forEach((p,i)=>$("tp"+i).value=p);try{localStorage.removeItem(KEY);}catch(e){}setCurrency("EGP");setMode("markup");selectTier(3);};
+function flash(b,t){const o=b.textContent;b.textContent=t;setTimeout(()=>b.textContent=o,1600);}
+
+$("copyBtn").onclick=()=>{if(!last)return;const L=last;
+  const txt=[`تسعير Moldify 3D`,`الخامة: ${egp(L.fil)}`,`الكهرباء (${L.tier?"الشريحة "+L.tier+" – ":""}${egp(L.rate)}/ك.و.س): ${egp(L.elec)}`,
+  `استهلاك الطابعة: ${egp(L.wear)}`,`الشغل: ${egp(L.labor)}`,`احتياطي الفشل: ${egp(L.fail)}`,`إضافات: ${egp(L.extra)}`,
+  `التكلفة: ${egp(L.cost)}`,`سعر البيع: ${egp(L.price)}`,`صافي الربح: ${egp(L.profit)} (Margin ${pct(L.margin)} / Markup ${pct(L.mk)})`,
+  `الطلب (${L.qty} قطعة): ${egp(L.price*L.qty)} – ربح ${egp(L.profit*L.qty)}`].join("\n");
+  const b=$("copyBtn");
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>flash(b,"اتنسخ"),()=>fallback(txt,b));}else fallback(txt,b);};
+function fallback(txt,b){const t=document.createElement("textarea");t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand("copy");flash(b,"اتنسخ");}catch(e){flash(b,"مقدرتش أنسخ");}t.remove();}
+
+// ---------- products
+const PKEY="moldify-products-v1";
+let products=[];try{products=JSON.parse(localStorage.getItem(PKEY)||"[]")||[];}catch(e){products=[];}
+let curId=null;
+const esc=t=>String(t).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const PER_PRODUCT=["grams","hours","mins","laborMin","failRate","pack","finish","ship","salePrice","qty"];
+function persist(){try{localStorage.setItem(PKEY,JSON.stringify(products));return true;}catch(e){return false;}}
+function snap(){calc();const o={};ids.forEach(id=>o[id]=state[id]);o.mode=state.mode;o.currency=state.currency;o.tier=state.tier;o.tierPrices=state.tierPrices.slice();return o;}
+function hm(h){const H=Math.floor(h+1e-9),M=Math.round((h-H)*60);return H&&M?`${H}س ${M}د`:H?`${H}س`:`${M}د`;}
+function setStatus(html){$("pStatus").innerHTML=html;}
+function markEditing(){
+  const p=products.find(x=>x.id===curId);
+  document.querySelector(".prod-card").classList.toggle("editing",!!p);
+  $("pSave").textContent=p?"حفظ التعديل":"حفظ المنتج";
+  if(p)setStatus(`بتعدّل على <b>${esc(p.name)}</b>. أي تغيير هيتسجل لما تدوس "حفظ التعديل".`);
+  else setStatus('اكتب اسم المنتج وبياناته، ودوس "حفظ المنتج" عشان يتسجل في جدول منتجاتي تحت.');
+}
+function renderProducts(){
+  const q=$("pSearch").value.trim();
+  const list=products.filter(p=>!q||p.name.includes(q));
+  $("pCount").textContent=products.length;
+  $("pEmpty").hidden=products.length>0;
+  $("pEmpty").textContent="لسه مفيش منتجات محفوظة. اكتب اسم منتج فوق ودوس \"حفظ المنتج\".";
+  if(products.length&&!list.length){$("pEmpty").hidden=false;$("pEmpty").textContent="مفيش منتج بالاسم ده.";}
+  document.querySelector(".ptbl").hidden=!list.length;
+  $("pBody").innerHTML=list.map(p=>{const d=p.data,r=compute(d);
+    const cls=r.profit>0.005?"pos":r.profit<-0.005?"neg":"";
+    return `<tr data-id="${p.id}" class="${p.id===curId?"cur":""}">
+      <td class="stick" title="${esc(p.name)}">${esc(p.name)}</td>
+      <td class="act"><button type="button" class="mini open">فتح</button><button type="button" class="mini del">حذف</button></td>
+      <td>${d.currency==="USD"?"$":"ج.م"}</td>
+      <td class="n">${fmt(r.wearRate)}</td><td>${hm(r.h)}</td><td class="n">${fmt(r.wear)}</td>
+      <td class="n">${fmt(r.kg,0)}</td><td class="n">${fmt(r.kg/1000,3)}</td><td class="n">${fmt(r.grams,1)}</td><td class="n">${fmt(r.fil)}</td>
+      <td class="n">${fmt(r.elec)}</td><td class="n">${fmt(r.labor)}</td><td class="n">${fmt(r.f*100,0)}%</td><td class="n">${fmt(r.fail)}</td>
+      <td class="n">${fmt(pos(d.finish))}</td><td class="n">${fmt(pos(d.pack))}</td><td class="n">${fmt(pos(d.ship))}</td><td class="n tot">${fmt(r.cost)}</td>
+      <td class="n">${pct(r.mk)}</td><td class="n sell">${fmt(r.price)}</td><td class="n ${cls}">${fmt(r.profit)}</td></tr>`;}).join("");
+}
+function loadInto(d){
+  ids.forEach(id=>{if(d[id]!==undefined){$(id).value=d[id];}});
+  if(Array.isArray(d.tierPrices))d.tierPrices.forEach((v,i)=>{state.tierPrices[i]=v;const el=$("tp"+i);if(el)el.value=v;});
+  setCurrency(d.currency||"EGP");setMode(d.mode==="price"?"price":"markup");selectTier(Number.isInteger(d.tier)?d.tier:state.tier);
+}
+$("pSave").onclick=()=>{
+  const name=$("pName").value.trim();
+  if(!name){$("pName").focus();setStatus("<b>اكتب اسم المنتج الأول</b> عشان تقدر تحفظه.");return;}
+  const data=snap();const now=new Date().toISOString();
+  let p=products.find(x=>x.id===curId);
+  if(p){p.name=name;p.data=data;p.savedAt=now;}
+  else{p={id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,data,savedAt:now};products.unshift(p);curId=p.id;}
+  const ok=persist();renderProducts();markEditing();
+  flash($("pSave"),ok?"اتحفظ":"المتصفح مش سامح بالحفظ");
+};
+$("pNew").onclick=()=>{
+  curId=null;$("pName").value="";
+  PER_PRODUCT.forEach(id=>{$(id).value=id==="qty"?1:0;});
+  calc();renderProducts();markEditing();$("pName").focus();
+};
+$("pBody").addEventListener("click",e=>{
+  const tr=e.target.closest("tr");if(!tr)return;const id=tr.dataset.id;const p=products.find(x=>x.id===id);if(!p)return;
+  if(e.target.closest(".open")){curId=id;$("pName").value=p.name;loadInto(p.data);renderProducts();markEditing();
+    window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});}
+  const del=e.target.closest(".del");
+  if(del){
+    if(!del.classList.contains("arm")){del.classList.add("arm");del.textContent="متأكد؟";setTimeout(()=>{if(del.isConnected){del.classList.remove("arm");del.textContent="حذف";}},3000);return;}
+    products=products.filter(x=>x.id!==id);if(curId===id)curId=null;persist();renderProducts();markEditing();
+  }
+});
+$("pSearch").addEventListener("input",renderProducts);
+
+// ---------- export / import (CSV opens in Excel)
+const COLS=[
+ ["المنتج",(p,d,r)=>p.name],["العملة",(p,d,r)=>d.currency==="USD"?"USD":"EGP"],["سعر ساعة الطابعة",(p,d,r)=>r.wearRate],["ساعات الطباعة",(p,d,r)=>r.h],["تكلفة الطابعة",(p,d,r)=>r.wear],
+ ["سعر كيلو الفيلامنت",(p,d,r)=>r.kg],["سعر الجرام",(p,d,r)=>r.kg/1000],["الوزن بالجرام",(p,d,r)=>r.grams],["تكلفة الخامة",(p,d,r)=>r.fil],
+ ["الكهرباء",(p,d,r)=>r.elec],["شغلك",(p,d,r)=>r.labor],["نسبة الهالك %",(p,d,r)=>r.f*100],["احتياطي الهالك",(p,d,r)=>r.fail],
+ ["الإضافات",(p,d,r)=>pos(d.finish)],["التغليف",(p,d,r)=>pos(d.pack)],["الشحن",(p,d,r)=>pos(d.ship)],["التكلفة الإجمالية",(p,d,r)=>r.cost],
+ ["نسبة الربح %",(p,d,r)=>isFinite(r.mk)?r.mk*100:""],["سعر البيع",(p,d,r)=>r.price],["صافي الربح",(p,d,r)=>r.profit],
+ ["سعر الطابعة",(p,d,r)=>pos(d.printerPrice)],["العمر المتوقع",(p,d,r)=>pos(d.lifeHours)],["الصيانة %",(p,d,r)=>pos(d.maint)],
+ ["استهلاك الطابعة وات",(p,d,r)=>pos(d.watts)],["الشريحة",(p,d,r)=>(d.tier|0)+1],["سعر الكيلووات",(p,d,r)=>r.rate],
+ ["دقايق شغلك",(p,d,r)=>pos(d.laborMin)],["سعر ساعتك",(p,d,r)=>pos(d.laborRate)],["العمولة %",(p,d,r)=>pos(d.comm)],
+ ["الكمية",(p,d,r)=>r.qty],["طريقة التسعير",(p,d,r)=>d.mode==="price"?"سعر بيع":"نسبة ربح"],
+ ["نسبة الربح المدخلة %",(p,d,r)=>pos(d.markup)],["سعر البيع المدخل",(p,d,r)=>pos(d.salePrice)],["تاريخ الحفظ",(p,d,r)=>(p.savedAt||"").slice(0,10)]];
+const cell=v=>{if(typeof v==="number")v=Math.round(v*1000)/1000;v=String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+function toCSV(){return "\ufeff"+[COLS.map(c=>cell(c[0])).join(",")].concat(products.map(p=>{const r=compute(p.data);return COLS.map(c=>cell(c[1](p,p.data,r))).join(",");})).join("\r\n");}
+async function offerFile(name,text){
+  try{if(window.claude&&typeof window.claude.use==="function"){const dl=await window.claude.use("downloads");
+    if(dl){try{await dl.save({filename:name,data:text});return "saved";}catch(e){return e&&e.code==="declined"?"declined":"failed";}}}}catch(e){}
+  try{const url=URL.createObjectURL(new Blob([text],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);return "saved";}catch(e){return "failed";}
+}
+$("pExport").onclick=async()=>{
+  const b=$("pExport");if(!products.length){flash(b,"مفيش منتجات");return;}
+  const r=await offerFile(`Moldify-products-${new Date().toISOString().slice(0,10)}.csv`,toCSV());
+  flash(b,r==="saved"?"اتصدّر":r==="declined"?"اتلغى":"مقدرتش أصدّر");
+};
+function parseCSV(t){const rows=[];let row=[],v="",q=false;t=t.replace(/^\ufeff/,"");
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){v+='"';i++;}else q=false;}else v+=ch;}
+    else if(ch==='"')q=true;else if(ch===","){row.push(v);v="";}else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&t[i+1]==="\n")i++;row.push(v);rows.push(row);row=[];v="";}else v+=ch;}
+  if(v||row.length){row.push(v);rows.push(row);}return rows.filter(r=>r.some(x=>x.trim()!==""));}
+$("pImport").addEventListener("change",async e=>{
+  const file=e.target.files&&e.target.files[0];e.target.value="";if(!file)return;
+  const rows=parseCSV(await file.text());if(rows.length<2){setStatus("<b>الملف ده فاضي أو مش بتاع الحاسبة.</b>");return;}
+  const H=rows[0].map(x=>x.trim());const col=n=>H.indexOf(n);const g=(r,n)=>{const i=col(n);return i<0?"":r[i];};const nm=(r,n)=>pos(g(r,n));
+  if(col("المنتج")<0){setStatus("<b>الملف ده مش متصدّر من الحاسبة</b>، مفيهوش عمود \"المنتج\".");return;}
+  let added=0;
+  rows.slice(1).forEach(r=>{const name=(g(r,"المنتج")||"").trim();if(!name)return;
+    const hrs=nm(r,"ساعات الطباعة");const tier=Math.min(6,Math.max(0,(parseInt(g(r,"الشريحة"))||(state.tier+1))-1));
+    const tp=state.tierPrices.slice();if(col("سعر الكيلووات")>=0&&(g(r,"العملة")||"").trim()!=="USD")tp[tier]=nm(r,"سعر الكيلووات");
+    const d={grams:nm(r,"الوزن بالجرام"),kgPrice:nm(r,"سعر كيلو الفيلامنت"),hours:Math.floor(hrs),mins:Math.round((hrs-Math.floor(hrs))*60),
+      watts:nm(r,"استهلاك الطابعة وات"),printerPrice:nm(r,"سعر الطابعة"),lifeHours:nm(r,"العمر المتوقع"),maint:nm(r,"الصيانة %"),
+      laborMin:nm(r,"دقايق شغلك"),laborRate:nm(r,"سعر ساعتك"),failRate:nm(r,"نسبة الهالك %"),pack:nm(r,"التغليف"),finish:nm(r,"الإضافات"),
+      ship:nm(r,"الشحن"),comm:nm(r,"العمولة %"),markup:nm(r,"نسبة الربح المدخلة %"),salePrice:nm(r,"سعر البيع المدخل"),qty:Math.max(1,nm(r,"الكمية")||1),
+      mode:g(r,"طريقة التسعير")==="سعر بيع"?"price":"markup",currency:(g(r,"العملة")||"").trim()==="USD"?"USD":"EGP",usdKwh:nm(r,"سعر الكيلووات"),tier,tierPrices:tp};
+    const date=(g(r,"تاريخ الحفظ")||"").trim();
+    if(products.some(p=>p.name===name&&(p.savedAt||"").slice(0,10)===date))return;
+    products.push({id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,data:d,savedAt:date?date+"T00:00:00.000Z":new Date().toISOString()});added++;});
+  persist();renderProducts();setStatus(added?`<b>اتضاف ${added} منتج</b> من الملف.`:"<b>مفيش منتجات جديدة</b> في الملف، كلهم موجودين.");
+});
+
+document.documentElement.dir="rtl";document.documentElement.lang="ar";
+setCurrency(state.currency);setMode(state.mode);selectTier(state.tier);renderProducts();markEditing();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
